@@ -1,6 +1,8 @@
 from django.core.urlresolvers import reverse
+from django.http import Http404
 from django.template.loader import render_to_string
 from django.template import RequestContext, Context
+from django.utils.functional import update_wrapper
 
 import hashlib
 import os
@@ -11,7 +13,7 @@ class NexusModule(object):
     # generic permission required
     permission = None
     media_root = None
-    
+
     def __init__(self, site, category=None, name=None, app_name=None):
         self.category = category
         self.site = site
@@ -21,6 +23,12 @@ class NexusModule(object):
             mod = __import__(self.__class__.__module__)
             self.media_root = os.path.normpath(os.path.join(os.path.dirname(mod.__file__), 'media'))
 
+    def show(self, request):
+        """
+        Can be used to show or hide this module on a per request basis
+        """
+        return True
+
     def render_to_string(self, template, context={}, request=None):
         context.update(self.get_context(request))
         return self.site.render_to_string(template, context, request, current_app=self.name)
@@ -29,11 +37,19 @@ class NexusModule(object):
         context.update(self.get_context(request))
         return self.site.render_to_response(template, context, request, current_app=self.name)
 
-    def as_view(self, *args, **kwargs):
+    def as_view(self, view, *args, **kwargs):
         if 'extra_permission' not in kwargs:
             kwargs['extra_permission'] = self.permission
-        return self.site.as_view(*args, **kwargs)
-    
+        wrapped_view = self.site.as_view(view, *args, **kwargs)
+
+        def inner(request, *args, **kwargs):
+            if not self.show(request):
+                raise Http404
+            return wrapped_view(request, *args, **kwargs)
+        
+        return update_wrapper(inner, wrapped_view)
+
+
     def get_context(self, request):
         title = self.get_title()
         return {

@@ -248,7 +248,7 @@ class NexusSite(object):
             else:
                 home_url = None
 
-            if hasattr(module, 'render_on_dashboard'):
+            if hasattr(module, 'render_on_dashboard') and module.show(request):
                 # Show by default, unless a permission is required
                 if not module.permission or request.user.has_perm(module.permission):
                     module_set.append((module.get_dashboard_title(), module.render_on_dashboard(request), home_url))

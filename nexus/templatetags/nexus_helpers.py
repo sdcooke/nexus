@@ -16,7 +16,7 @@ def show_navigation(context):
     for namespace, module in site._registry.iteritems():
         module, category = module
         
-        if not module.home_url:
+        if not module.home_url or not module.show(request):
             continue
 
         if module.permission and not request.user.has_perm(module.permission):
